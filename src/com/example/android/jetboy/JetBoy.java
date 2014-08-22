@@ -20,19 +20,29 @@
 package com.example.android.jetboy;
 
 import com.example.android.jetboy.JetBoyView.JetBoyThread;
+import com.umeng.analytics.MobclickAgent;
+import com.umeng.update.UmengDialogButtonListener;
 import com.umeng.update.UmengUpdateAgent;
+import com.umeng.update.UpdateStatus;
+
+import java.lang.*;
 
 import android.app.Activity;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class JetBoy extends Activity implements View.OnClickListener {
 
-    /** A handle to the thread that's actually running the animation. */
+    private static final String TAG = "JetBoy";
+
+	/** A handle to the thread that's actually running the animation. */
     private JetBoyThread mJetBoyThread;
 
     /** A handle to the View in which the game is running. */
@@ -58,8 +68,7 @@ public class JetBoy extends Activity implements View.OnClickListener {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
-        UmengUpdateAgent.update(this);
-
+        prepare4UmengUpdate();
         // get handles to the JetView from XML and the JET thread.
         mJetBoyView = (JetBoyView)findViewById(R.id.JetBoyView);
         mJetBoyThread = mJetBoyView.getThread();
@@ -151,5 +160,58 @@ public class JetBoy extends Activity implements View.OnClickListener {
         } else {
             return mJetBoyThread.doKeyUp(keyCode, msg);
         }
+    }
+    
+    private void prepare4UmengUpdate() {
+        MobclickAgent.updateOnlineConfig( getApplicationContext());
+        //获取友盟在线参数
+        String update_mode = MobclickAgent.getConfigParams( getApplicationContext(), "update_mode" );
+        Log.d(TAG, "MainActivity.prepare4UmengUpdate, update_mode = " + update_mode);
+        if(TextUtils.isEmpty(update_mode)) {
+            return;
+        }
+        
+        //转换为数组
+        String[] mUpdateModeArray = update_mode.split(","); 
+        UmengUpdateAgent.setUpdateOnlyWifi(false); //在任意网络环境下都进行更新自动提醒
+        UmengUpdateAgent.update(getApplicationContext());  //调用umeng更新接口
+        String curr_version_name = null;
+        try {
+            curr_version_name = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        }
+        catch (NameNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        for(int i=0; i<mUpdateModeArray.length; i+=2 ) {
+            if(TextUtils.equals(mUpdateModeArray[i], curr_version_name)) {
+            	System.out.println("版本号："+curr_version_name + "=========更新模式："+mUpdateModeArray[i+1]);
+            	
+                if(TextUtils.equals(mUpdateModeArray[i + 1], "F"))  {
+                    //对话框按键的监听，对于强制更新的版本，如果用户未选择更新的行为，关闭app
+                    UmengUpdateAgent.setDialogListener(new UmengDialogButtonListener() {
+    
+                        @Override
+                        public void onClick(int status) {
+                            switch (status) {
+                            case UpdateStatus.Update:
+//                            	   UmengUpdateAgent.update(getApplicationContext());  //调用umeng更新接口
+                                break; 
+                            default:
+                            	 //友盟自动更新目前还没有提供在代码里面隐藏/显示更新对话框的
+                                //"以后再说"按钮的方式，所以在这里弹个Toast比较合适
+                            	Toast.makeText(getApplicationContext(), 
+                            			"非常抱歉，您需要更新应用才能继续使用", Toast.LENGTH_LONG).show();
+                            	JetBoy.this.finish();
+                            	break;
+                            }
+                        }
+                    });                
+                }
+                break;  //只要找到对应的版本号，即结束循环
+            }
+        }
+
     }
 }

@@ -18,8 +18,8 @@
 	used by the system to determine how to start the application and
 	integrate it with the rest of the system.  -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-	package="com.example.android.jetboy" android:versionCode="1"
-	android:versionName="1.0.1">
+	package="com.example.android.jetboy" android:versionCode="2"
+	android:versionName="1.01">
 
 	<uses-sdk android:minSdkVersion="3" 
 	  android:targetSdkVersion="11"/>
